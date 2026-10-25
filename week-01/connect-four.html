@@ -62,6 +62,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -223,6 +224,7 @@ h1 .four { color: var(--red); }
   font-variant-numeric: tabular-nums;
 }
 .score span { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: .85rem; }
+.score em { font-style: normal; }
 .chip { width: 10px; height: 10px; border-radius: 50%; background: var(--chip); flex: none; }
 
 .seg {
@@ -285,7 +287,7 @@ kbd {
   <header class="masthead">
     <p class="eyebrow">GBUS 562 · Week 01</p>
     <h1>Connect <span class="four">Four</span></h1>
-    <p class="lede">You play red and the computer plays yellow. Take turns dropping discs into the columns. The first to get four in a row across, up and down, or on a diagonal wins.</p>
+    <p class="lede">Play red against the computer, or switch to two players and take turns on one screen. Drop discs into the columns. The first to get four in a row across, up and down, or on a diagonal wins.</p>
   </header>
 
   <section class="game">
@@ -323,13 +325,22 @@ kbd {
           <button class="linkish" id="resetScores" type="button">Reset</button>
         </div>
         <div class="scores">
-          <div class="score"><b id="scoreHuman">0</b><span><i class="chip" style="--chip: var(--red)"></i>You</span></div>
+          <div class="score"><b id="scoreHuman">0</b><span><i class="chip" style="--chip: var(--red)"></i><em id="nameHuman">You</em></span></div>
           <div class="score"><b id="scoreDraw">0</b><span>Draws</span></div>
-          <div class="score"><b id="scoreCpu">0</b><span><i class="chip" style="--chip: var(--yellow)"></i>Computer</span></div>
+          <div class="score"><b id="scoreCpu">0</b><span><i class="chip" style="--chip: var(--yellow)"></i><em id="nameCpu">Computer</em></span></div>
         </div>
       </div>
 
       <div class="section">
+        <p class="label" id="modeLabel">Opponent</p>
+        <div class="seg" role="radiogroup" aria-labelledby="modeLabel">
+          <input type="radio" name="mode" id="mode-cpu" value="cpu"><label for="mode-cpu">Computer</label>
+          <input type="radio" name="mode" id="mode-pvp" value="pvp"><label for="mode-pvp">Two players</label>
+        </div>
+        <p class="hint">Switching starts a new game.</p>
+      </div>
+
+      <div class="section" id="levelSection">
         <p class="label" id="levelLabel">Difficulty</p>
         <div class="seg" role="radiogroup" aria-labelledby="levelLabel">
           <input type="radio" name="level" id="lvl-easy" value="easy"><label for="lvl-easy">Easy</label>
@@ -342,8 +353,8 @@ kbd {
       <div class="section">
         <p class="label" id="firstLabel">First move</p>
         <div class="seg" role="radiogroup" aria-labelledby="firstLabel">
-          <input type="radio" name="first" id="first-human" value="human"><label for="first-human">You</label>
-          <input type="radio" name="first" id="first-cpu" value="cpu"><label for="first-cpu">Computer</label>
+          <input type="radio" name="first" id="first-human" value="human"><label for="first-human" id="firstHumanLabel">You</label>
+          <input type="radio" name="first" id="first-cpu" value="cpu"><label for="first-cpu" id="firstCpuLabel">Computer</label>
         </div>
         <p class="hint" id="firstHint" hidden>Starts with the next game.</p>
       </div>
@@ -497,8 +508,13 @@ kbd {
   let history = [];
   let gameFirst = "human";
   let over = false, winner = 0, busy = false, token = 0, previewCol = -1;
-  let level = "medium", firstPref = "human", soundOn = true;
-  let scores = { human: 0, cpu: 0, draw: 0 };
+  let level = "medium", firstPref = "human", soundOn = true, mode = "cpu";
+  // Separate tallies for each mode. In two-player mode "human" is Red and "cpu" is Yellow.
+  const blankScores = () => ({ human: 0, cpu: 0, draw: 0 });
+  let allScores = { cpu: blankScores(), pvp: blankScores() };
+  const tally = () => allScores[mode];
+  const isPvp = () => mode === "pvp";
+  const nameOf = p => isPvp() ? (p === HUMAN ? "Red" : "Yellow") : (p === HUMAN ? "You" : "Computer");
   const discEls = new Array(ROWS * COLS).fill(null);
 
   const $ = id => document.getElementById(id);
@@ -506,14 +522,15 @@ kbd {
     grid: $("grid"), discs: $("discs"), cols: $("cols"), ghost: $("ghost"), wrap: $("boardWrap"),
     dot: $("turnDot"), main: $("statusMain"), sub: $("statusSub"), again: $("againBtn"),
     newBtn: $("newBtn"), undoBtn: $("undoBtn"), soundBtn: $("soundBtn"), record: $("record"),
-    levelHint: $("levelHint"), firstHint: $("firstHint"),
+    levelHint: $("levelHint"), firstHint: $("firstHint"), levelSection: $("levelSection"),
+    nameHuman: $("nameHuman"), nameCpu: $("nameCpu"), firstHumanLabel: $("firstHumanLabel"), firstCpuLabel: $("firstCpuLabel"),
     sHuman: $("scoreHuman"), sCpu: $("scoreCpu"), sDraw: $("scoreDraw")
   };
 
   const firstPlayer = () => (gameFirst === "human" ? HUMAN : CPU);
   const moverOf = i => (i % 2 === 0 ? firstPlayer() : 3 - firstPlayer());
   const current = () => moverOf(history.length);
-  const humanCanMove = () => !over && !busy && current() === HUMAN;
+  const humanCanMove = () => !over && !busy && (isPvp() || current() === HUMAN);
   const dropTime = r => 260 + r * 55;
 
   /* ---------- Sound ---------- */
@@ -590,16 +607,17 @@ kbd {
       const finish = () => {
         el.grid.classList.add("done");
         if (line) line.forEach(i => discEls[i] && discEls[i].classList.add("win"));
-        if (!replay) sound(winner === HUMAN ? "win" : winner === CPU ? "lose" : "draw");
+        if (!replay) sound(winner === 0 ? "draw" : (isPvp() || winner === HUMAN) ? "win" : "lose");
       };
       if (!replay) {
-        if (winner === HUMAN) scores.human++; else if (winner === CPU) scores.cpu++; else scores.draw++;
-        store.set("c4.scores", scores);
+        const t = tally();
+        if (winner === HUMAN) t.human++; else if (winner === CPU) t.cpu++; else t.draw++;
+        store.set("c4.scores", allScores);
       }
       animate ? setTimeout(finish, dropTime(r)) : finish();
     }
     render();
-    if (!over && !replay && current() === CPU) scheduleCpu(dropTime(r));
+    if (!over && !replay && !isPvp() && current() === CPU) scheduleCpu(dropTime(r));
   }
 
   function scheduleCpu(delay = 0) {
@@ -630,11 +648,12 @@ kbd {
     gameFirst = firstPref;
     clearBoard();
     render();
-    if (current() === CPU) scheduleCpu(200);
+    if (!isPvp() && current() === CPU) scheduleCpu(200);
   }
 
   function canUndo() {
     if (over || busy) return false;
+    if (isPvp()) return history.length > 0;
     return history.some((_, i) => moverOf(i) === HUMAN);
   }
 
@@ -649,7 +668,7 @@ kbd {
       const d = discEls[r * COLS + c];
       if (d) d.remove();
       discEls[r * COLS + c] = null;
-      if (who === HUMAN) break;
+      if (isPvp() || who === HUMAN) break; // two players: take back one move
     }
     const lastIdx = history.length - 1;
     if (lastIdx >= 0) {
@@ -665,25 +684,41 @@ kbd {
   function renderGhost() {
     const show = previewCol >= 0 && humanCanMove() && heights[previewCol] < ROWS;
     el.ghost.classList.toggle("show", show);
+    const p = current();
+    el.ghost.classList.toggle("p1", p === HUMAN);
+    el.ghost.classList.toggle("p2", p === CPU);
     if (previewCol >= 0) el.ghost.style.setProperty("--c", previewCol);
   }
 
   function render() {
     // Status
     el.dot.classList.toggle("thinking", busy);
+    const colorOf = p => (p === HUMAN ? "var(--red)" : "var(--yellow)");
     if (over) {
       const n = history.length;
-      if (winner === HUMAN) { el.main.textContent = "You win!"; el.sub.textContent = `Four in a row after ${n} moves.`; el.dot.style.setProperty("--dot", "var(--red)"); }
-      else if (winner === CPU) { el.main.textContent = "The computer wins."; el.sub.textContent = `It found four in a row after ${n} moves.`; el.dot.style.setProperty("--dot", "var(--yellow)"); }
-      else { el.main.textContent = "It's a draw."; el.sub.textContent = "All 42 spaces are full."; el.dot.style.setProperty("--dot", "var(--line)"); }
-    } else if (current() === CPU) {
+      if (winner === 0) {
+        el.main.textContent = "It's a draw."; el.sub.textContent = "All 42 spaces are full.";
+        el.dot.style.setProperty("--dot", "var(--line)");
+      } else {
+        el.dot.style.setProperty("--dot", colorOf(winner));
+        if (isPvp()) { el.main.textContent = `${nameOf(winner)} wins!`; el.sub.textContent = `Four in a row after ${n} moves.`; }
+        else if (winner === HUMAN) { el.main.textContent = "You win!"; el.sub.textContent = `Four in a row after ${n} moves.`; }
+        else { el.main.textContent = "The computer wins."; el.sub.textContent = `It found four in a row after ${n} moves.`; }
+      }
+    } else if (!isPvp() && current() === CPU) {
       el.main.textContent = "Computer is thinking…";
       el.sub.textContent = `${LEVELS[level].name}: looking ${LEVELS[level].depth} moves ahead.`;
       el.dot.style.setProperty("--dot", "var(--yellow)");
     } else {
-      el.main.textContent = "Your move";
-      el.sub.textContent = history.length ? "Click a column or press 1–7." : "Click any column to drop your first disc.";
-      el.dot.style.setProperty("--dot", "var(--red)");
+      const p = current();
+      el.dot.style.setProperty("--dot", colorOf(p));
+      if (isPvp()) {
+        el.main.textContent = `${nameOf(p)}'s move`;
+        el.sub.textContent = history.length ? "Click a column or press 1–7." : `${nameOf(p)} goes first. Click any column to drop a disc.`;
+      } else {
+        el.main.textContent = "Your move";
+        el.sub.textContent = history.length ? "Click a column or press 1–7." : "Click any column to drop your first disc.";
+      }
     }
     el.again.hidden = !over;
 
@@ -701,13 +736,20 @@ kbd {
     el.levelHint.textContent = LEVELS[level].hint;
     $(`lvl-${level}`).checked = true;
     $(`first-${firstPref}`).checked = true;
+    $(`mode-${mode}`).checked = true;
+    el.levelSection.hidden = isPvp();
+    el.firstHumanLabel.textContent = nameOf(HUMAN);
+    el.firstCpuLabel.textContent = nameOf(CPU);
+    el.nameHuman.textContent = nameOf(HUMAN);
+    el.nameCpu.textContent = nameOf(CPU);
     el.soundBtn.textContent = soundOn ? "Sound on" : "Sound off";
     el.soundBtn.setAttribute("aria-pressed", String(soundOn));
 
     // Scores
-    el.sHuman.textContent = scores.human;
-    el.sCpu.textContent = scores.cpu;
-    el.sDraw.textContent = scores.draw;
+    const t = tally();
+    el.sHuman.textContent = t.human;
+    el.sCpu.textContent = t.cpu;
+    el.sDraw.textContent = t.draw;
 
     // Move record
     if (!history.length) {
@@ -717,7 +759,7 @@ kbd {
     }
   }
 
-  function saveSettings() { store.set("c4.settings", { level, firstPref, soundOn }); }
+  function saveSettings() { store.set("c4.settings", { level, firstPref, soundOn, mode }); }
 
   function wire() {
     el.cols.addEventListener("click", e => {
@@ -758,10 +800,13 @@ kbd {
     el.again.addEventListener("click", newGame);
     el.undoBtn.addEventListener("click", undo);
     el.soundBtn.addEventListener("click", () => { soundOn = !soundOn; saveSettings(); render(); });
-    $("resetScores").addEventListener("click", () => { scores = { human: 0, cpu: 0, draw: 0 }; store.set("c4.scores", scores); render(); });
+    $("resetScores").addEventListener("click", () => { allScores[mode] = blankScores(); store.set("c4.scores", allScores); render(); });
 
     document.querySelectorAll('input[name="level"]').forEach(i => i.addEventListener("change", () => {
       level = i.value; saveSettings(); render();
+    }));
+    document.querySelectorAll('input[name="mode"]').forEach(i => i.addEventListener("change", () => {
+      mode = i.value === "pvp" ? "pvp" : "cpu"; saveSettings(); newGame();
     }));
     document.querySelectorAll('input[name="first"]').forEach(i => i.addEventListener("change", () => {
       firstPref = i.value; saveSettings();
@@ -776,7 +821,10 @@ kbd {
     level = LEVELS[data.level || saved.level] ? (data.level || saved.level) : "medium";
     firstPref = (data.firstPref || saved.firstPref) === "cpu" ? "cpu" : "human";
     soundOn = (data.soundOn ?? saved.soundOn) !== false;
-    scores = Object.assign({ human: 0, cpu: 0, draw: 0 }, store.get("c4.scores", {}), data.scores || {});
+    mode = (data.mode || saved.mode) === "pvp" ? "pvp" : "cpu";
+    const loaded = data.allScores || store.get("c4.scores", {});
+    if (typeof loaded.human === "number") allScores.cpu = Object.assign(blankScores(), loaded); // older single-mode save
+    else allScores = { cpu: Object.assign(blankScores(), loaded.cpu), pvp: Object.assign(blankScores(), loaded.pvp) };
 
     buildColumns();
     wire();
@@ -789,12 +837,12 @@ kbd {
         doMove(c, { animate: false, replay: true });
       }
       render();
-      if (!over && current() === CPU) scheduleCpu(200);
+      if (!over && !isPvp() && current() === CPU) scheduleCpu(200);
     } else {
       newGame();
     }
 
-    window.claude?.hot?.snapshot?.(() => ({ history: [...history], gameFirst, level, firstPref, soundOn, scores }));
+    window.claude?.hot?.snapshot?.(() => ({ history: [...history], gameFirst, level, firstPref, soundOn, mode, allScores }));
   }
 
   window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
