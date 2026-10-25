@@ -1,5 +1,5 @@
 # UMW-GBUS562
-GBUS652 Coursework
+GBUS 562 Coursework
 
 ## About
 
