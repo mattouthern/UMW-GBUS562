@@ -8,4 +8,4 @@ This repository holds coursework and materials created for GBUS 562: AI Language
 ## Weekly Material
 
 1. [week-01](week-01/)
-2. [Week 2](week-02/): a Prompt Lab web app for testing prompts against Claude, built with Claude Code.
+2. [Week02](week-02/)
