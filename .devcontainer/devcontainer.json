@@ -1,8 +1,12 @@
 {
   "image": "mcr.microsoft.com/devcontainers/universal:2",
   "features": {
-    "ghcr.io/devcontainers/features/powershell:1": {}
+    "ghcr.io/devcontainers/features/powershell:1": {},
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.13"
+    }
   },
+  "postCreateCommand": "curl -fsSL https://claude.ai/install.sh | bash",
   "customizations": {
     "vscode": {
       "settings": {
