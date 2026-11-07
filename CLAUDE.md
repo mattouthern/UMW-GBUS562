@@ -25,3 +25,7 @@ Guidance for Claude Code when working in this repository.
 - Do not put the key in client-side code (e.g., browser HTML/JS) where anyone could read it. Browser apps that call Claude need a small server-side piece that holds the key.
 - If a `.env` file is ever used, make sure it is listed in `.gitignore` before creating it.
 - Before every commit, check the staged changes (`git diff --cached`) to confirm no secrets are included.
+
+## Python environment
+
+- Always use .venv for running Python and installing packages.

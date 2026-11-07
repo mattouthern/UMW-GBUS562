@@ -9,3 +9,4 @@ This repository holds coursework and materials created for GBUS 562: AI Language
 
 1. [week-01](week-01/)
 2. [week-02](week-02/)
+3. [Week 3](week-03/): a RAG tool that answers questions from Copperline Manufacturing's finance documents, built with Claude Code.
