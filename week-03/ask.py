@@ -1,16 +1,20 @@
-"""Ask questions about Copperline Manufacturing's finance documents (RAG).
+"""Ask questions about a folder of documents (RAG). Defaults to Copperline's finance documents.
 
 Usage (from the top of the repository):
     .venv/bin/python week-03/ask.py "How much can I spend on dinner in Boston?"
     .venv/bin/python week-03/ask.py              # interactive: ask several questions
     .venv/bin/python week-03/ask.py --rebuild    # re-index after adding/removing documents
+    .venv/bin/python week-03/ask.py --docs week-03/larkfield-docs "What is the overdraft fee?"
+    .venv/bin/python week-03/ask.py "..." --save week-03/runs/q1.txt   # also save the output
 
 How it works:
-  1. Every document in copperline-docs/ is split into one chunk per section.
-     Each chunk starts with "<document title> - <section heading>" so it makes
-     sense on its own, and records the file it came from.
-  2. Chunks are stored in a Chroma database (week-03/chroma_db) using Chroma's
-     built-in embedding model.
+  1. Every document in the folder (copperline-docs/ unless --docs names another)
+     is split into one chunk per section. Each chunk starts with
+     "<document title> - <section heading>" so it makes sense on its own, and
+     records the file it came from.
+  2. Chunks are stored in a Chroma database using Chroma's built-in embedding
+     model. Each document folder gets its own database under week-03/chroma_db/
+     (which Git ignores).
   3. For a question, the 4 most similar chunks are retrieved and shown, then
      sent to Claude with instructions to answer only from them and cite files.
 """
@@ -24,27 +28,51 @@ from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DOCS_DIR = HERE / "copperline-docs"
-DB_DIR = HERE / "chroma_db"
+DEFAULT_DOCS_DIR = HERE / "copperline-docs"
+DB_ROOT = HERE / "chroma_db"  # one sub-folder per document folder; ignored by Git
+# Set by use_docs_folder() from the --docs option.
+DOCS_DIR = DEFAULT_DOCS_DIR
+DB_DIR = None
 # API-Key.txt lives in the folder that contains the repository (outside Git).
 # If it's missing, the API_KEY environment variable is used instead.
 KEY_FILE = HERE.parent.parent / "API-Key.txt"
 
-COLLECTION = "copperline_docs"
+COLLECTION = "docs"
 MODEL = "claude-sonnet-5"
 TOP_K = 4
 MAX_CHUNK_CHARS = 1500  # longer sections are split at paragraph boundaries
 SUPPORTED = {".html", ".htm", ".pdf", ".md", ".txt"}
 
 # Extra context added to every chunk of a document, for terms that a document
-# defines once but uses in every section.
+# defines once but uses in every section. Keyed by document folder name, then file.
 CONTEXT_NOTES = {
-    "month-end-close-calendar.html": (
-        "Deadlines are counted in business days: business day 1 is the first "
-        "business day of the new month, and business day minus 1 is the last "
-        "business day of the month being closed."
-    ),
+    "copperline-docs": {
+        "month-end-close-calendar.html": (
+            "Deadlines are counted in business days: business day 1 is the first "
+            "business day of the new month, and business day minus 1 is the last "
+            "business day of the month being closed."
+        ),
+    },
 }
+
+
+def use_docs_folder(folder):
+    """Point the tool at a document folder and its own Chroma database."""
+    global DOCS_DIR, DB_DIR
+    DOCS_DIR = Path(folder).expanduser().resolve()
+    if not DOCS_DIR.is_dir():
+        sys.exit(f"Document folder not found: {folder}")
+    # Name + short hash of the full path, so two folders with the same name never share a database.
+    tag = hashlib.sha256(str(DOCS_DIR).encode()).hexdigest()[:8]
+    DB_DIR = DB_ROOT / f"{DOCS_DIR.name}-{tag}"
+
+
+def show_path(path):
+    """Path relative to the repository when possible, for friendlier messages."""
+    try:
+        return path.relative_to(HERE.parent).as_posix()
+    except ValueError:
+        return str(path)
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +236,7 @@ def make_chunks():
         except Exception as e:
             print(f"  Skipping {source}: could not read it ({e})")
             continue
-        note = CONTEXT_NOTES.get(source, "")
+        note = CONTEXT_NOTES.get(DOCS_DIR.name, {}).get(source, "")
         count = 0
         for heading, body in sections:
             pieces = split_long(body)
@@ -262,7 +290,7 @@ def embedder():
 
 
 def build_index():
-    print(f"Indexing documents in {DOCS_DIR.relative_to(HERE.parent)}/ ...")
+    print(f"Indexing documents in {show_path(DOCS_DIR)}/ ...")
     chunks = make_chunks()
     if not chunks:
         sys.exit("No documents found to index.")
@@ -275,7 +303,7 @@ def build_index():
     )
     col.add(ids=[c["id"] for c in chunks], documents=[c["text"] for c in chunks],
             metadatas=[c["meta"] for c in chunks])
-    print(f"Done: {len(chunks)} chunks stored in {DB_DIR.relative_to(HERE.parent)}/\n")
+    print(f"Done: {len(chunks)} chunks stored in {show_path(DB_DIR)}/\n")
     return col
 
 
@@ -287,8 +315,8 @@ def open_index():
         print("No database yet, building it now.")
         return build_index()
     if (col.metadata or {}).get("fingerprint") != fingerprint():
-        print("Note: the documents have changed since the database was built. "
-              "Run with --rebuild to update it.\n")
+        print(f"Note: the documents in {show_path(DOCS_DIR)}/ have changed since the "
+              "database was built. Run with --rebuild to update it.\n")
     return col
 
 
@@ -314,10 +342,10 @@ def show_hits(hits):
     print()
 
 
-SYSTEM_PROMPT = """You answer employee questions about Copperline Manufacturing's finance policies.
+SYSTEM_PROMPT = """You answer questions about an organization's documents.
 
 Use ONLY the sources provided in the user's message. Do not use outside knowledge or assumptions.
-- After each fact you state, cite the source file it came from in square brackets, e.g. [travel-expense-policy.html].
+- After each fact you state, cite the source file it came from in square brackets, e.g. [example-policy.html].
 - If the sources do not contain the answer, say clearly that the provided documents don't answer the question. Do not guess.
 - If the sources answer only part of the question, answer that part and say what is missing.
 - Keep the answer concise and in plain language."""
@@ -366,23 +394,47 @@ def ask_claude(client, question, hits):
     return "\n".join(b.text for b in response.content if b.type == "text").strip()
 
 
-def answer(col, client, question):
+def save_run(path, hits, reply):
+    """Write the full retrieved chunks, then a line with only ANSWER, then Claude's answer."""
+    parts = []
+    for rank, h in enumerate(hits, 1):
+        parts.append(f"Rank {rank} | score {h['score']:.3f} | source {h['meta']['source']}\n"
+                     f"{h['text']}\n")
+    parts.append(f"ANSWER\n{reply}\n")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(parts), encoding="utf-8")
+    print(f"Saved this run to {show_path(path)}")
+
+
+def answer(col, client, question, save_to=None):
     hits = retrieve(col, question)
     show_hits(hits)
+    reply = ask_claude(client, question, hits)
     print("Answer:")
-    print(ask_claude(client, question, hits))
+    print(reply)
     print()
+    if save_to:
+        save_run(save_to, hits, reply)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ask questions about Copperline's finance documents.")
+    parser = argparse.ArgumentParser(description="Ask questions about a folder of documents.")
     parser.add_argument("question", nargs="*", help="your question (leave out for interactive mode)")
+    parser.add_argument("--docs", metavar="FOLDER", default=str(DEFAULT_DOCS_DIR),
+                        help="folder of documents to answer from (default: week-03/copperline-docs)")
     parser.add_argument("--rebuild", action="store_true",
                         help="rebuild the database after adding or removing documents")
+    parser.add_argument("--save", metavar="FILE",
+                        help="also write the retrieved chunks and the answer to this text file")
     args = parser.parse_args()
 
-    col = build_index() if args.rebuild else None
     question = " ".join(args.question).strip()
+    if args.save and not question:
+        parser.error("--save needs a question on the command line")
+    save_to = Path(args.save).expanduser().resolve() if args.save else None
+    use_docs_folder(args.docs)
+
+    col = build_index() if args.rebuild else None
     if args.rebuild and not question:
         return
 
@@ -392,9 +444,10 @@ def main():
     col = col or open_index()
 
     if question:
-        answer(col, claude, question)
+        answer(col, claude, question, save_to)
         return
-    print("Ask a question about Copperline's finance documents (press Enter on an empty line to quit).")
+    print(f"Ask a question about the documents in {show_path(DOCS_DIR)}/ "
+          "(press Enter on an empty line to quit).")
     while (q := input("\nQuestion: ").strip()):
         print()
         answer(col, claude, q)
