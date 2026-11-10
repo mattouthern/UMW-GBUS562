@@ -45,6 +45,9 @@ The provided documents don't contain information about mortgage rates. They only
 
 ## Reflection
 What was wrong: There were two versions of consumer-fee-schedule, version 7 and version 8. Version 7 indicated that the overdraft fee was $35. Version 8 indicated that the overdraft fee was $29.
+
 How I fixed it: Removed. I removed version 7 from the folder and put it in an archive folder. I rebuild the database without version 7 data included.  
+
 Prevention: Archive Process. I believe that following a diciplined archive process would best address this situation. Wheneven a new version of a document is produced, the superceded version should be removed from the database. 
+
 Question 6: Declined. My tool provided chunks about stop payments, checking account monthly fees, and share certificates before determining that the documents do not provide information on mortgage rates.  
