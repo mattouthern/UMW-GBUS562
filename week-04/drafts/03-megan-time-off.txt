@@ -1,0 +1,22 @@
+DRAFT - NOT SENT
+To: megan.turner@hartwellfoods.example
+Subject: Re: Family trip
+Needs human review: no
+In reply to: 03-megan-time-off.eml
+Drafted: 2026-11-15T18:32:08 by claude-sonnet-5
+
+Hi Megan,
+
+Thanks for planning ahead! Here's where things stand:
+
+- Your current vacation balance is 7 days, and a 10-business-day trip would need 10 days, so you're short by 3 days.
+- Since this is more than 5 consecutive business days, the policy requires your manager's approval at least 10 business days in advance (Vacation and Time Off Policy, "Requesting vacation" section, leave-policy.html). Two months out gives you plenty of lead time.
+- To cover the 3-day shortfall, you can request unpaid leave (up to 5 days are allowed in these cases), which needs approval from both your manager and HR (Vacation and Time Off Policy, "When you don't have enough vacation days" section, leave-policy.html).
+- Just a note: you currently have 0 personal days left, so those aren't an option to fill the gap.
+
+So your main option would be: 7 vacation days + 3 unpaid days = 10 days off. I'd suggest submitting your request to your manager, Lena Fischer, as soon as possible, and flagging the unpaid leave portion so HR can review it alongside the vacation request.
+
+Let me know if you'd like help with anything else!
+
+Best,
+HR Assistant

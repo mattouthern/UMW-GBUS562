@@ -26,6 +26,13 @@ Guidance for Claude Code when working in this repository.
 - If a `.env` file is ever used, make sure it is listed in `.gitignore` before creating it.
 - Before every commit, check the staged changes (`git diff --cached`) to confirm no secrets are included.
 
+## AGENT_EMAIL secret (always follow)
+
+- `AGENT_EMAIL` is a **GitHub Codespaces secret** that codespaces for `UMW-GBUS562` can access as an environment variable.
+- Programs in this repository may read `AGENT_EMAIL` from the environment at run time (e.g., Python: `os.environ["AGENT_EMAIL"]`).
+- **Claude must never open it itself**: never print, echo, `env`/`printenv`, log, or otherwise read or display its value in terminal commands or output.
+- Never write its contents to any file (source code, config, drafts, logs, docs, notebooks, artifacts), and never commit or publish it.
+
 ## Python environment
 
 - Always use .venv for running Python and installing packages.
