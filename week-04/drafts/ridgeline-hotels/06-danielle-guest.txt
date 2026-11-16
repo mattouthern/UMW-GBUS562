@@ -1,0 +1,21 @@
+Not sent.
+To: danielle.price@ridgelinehotels.example
+Subject: [NEEDS HR REVIEW] Re: A guest
+In reply to: 06-danielle-guest.eml
+Organization: ridgeline-hotels
+Drafted: 2026-11-16T19:28:03 by claude-sonnet-5
+
+DRAFT
+Hi Danielle,
+
+Thank you for reaching out, and I'm so sorry you're going through this. What you're describing — a guest following you and making comments about your appearance — is not okay, and you should not have to just "avoid that room" as a solution.
+
+Ridgeline does not tolerate harassment of team members by anyone, including guests, and this is the kind of concern that needs direct attention from People and Culture, not something I can resolve by email. I'm flagging your message right now so that a member of the People and Culture team can reach out to you directly and promptly to discuss next steps and support you.
+
+In the meantime, if you feel unsafe at any point, please don't hesitate to remove yourself from the situation and contact a manager or People and Culture immediately, and know that you're protected from any retaliation for having reported this (source: reporting-concerns-and-safety.html).
+
+Someone will be in touch with you very soon.
+
+Take care,
+HR Assistant, Ridgeline Hotels
+Needs human review: true

@@ -1,0 +1,55 @@
+Sender:  brittany.cole@ridgelinehotels.example
+Subject: Honeymoon
+Email:   week-04/ridgeline-hotels/sample-emails/03-brittany-honeymoon.eml
+Organization: ridgeline-hotels (week-04/ridgeline-hotels)
+
+Starting hr_mcp_server.py ...
+Tools: search_policy, get_leave_balance, save_reply
+
+Step 1: get_leave_balance
+  input:  {}
+  result: { "email": "brittany.cole@ridgelinehotels.example", "name": "Brittany Cole", "balances": { "PTO Days Remaining": 4, "Sick Days Remaining": 3 }, "details": { "Hotel": "Ridgeline Taos", "Role": "Server", "Supervisor": "Amanda Ross" } }
+
+Step 2: search_policy
+  input:  {"query": "requesting PTO in advance and what happens if not enough PTO days"}
+  result: { "query": "requesting PTO in advance and what happens if not enough PTO days", "results": [ { "source": "pto-policy.html", "title": "Paid Time Off (PTO) Policy", "section": "Requesting PTO", "version": "Effective this year. Owner: People and Culture.", "score": 0.713, "text": "Paid Time Off (PTO) P...
+
+Step 3: save_reply
+  input:  {"reply": "Hi Brittany,\n\nCongratulations on your upcoming wedding! \ud83c\udf89\n\nI checked your balance, and you currently have 4 PTO days remaining. Since you're hoping to take 6 consecutive days, that's 2 days more than you currently have, but you do have an option:\n\n- **Borrowing PTO**: Under our PTO Policy, if a planned absence is longer than your current balance, you can borrow up to 3 PTO days from what you'll earn over the next six months. That would cover the extra 2 days you need. Borrowed days require your general manager's approval, and the request must be submitted at least 30 days in advance. Since your trip is about two months out, you have time to do this if you act soon. (Source: pto-policy.html, \"Borrowing PTO you haven't earned yet\")\n\nA couple of other things to keep in mind:\n- Requests for 5 or more consecutive days need your supervisor's approval at least 30 days ahead of the start date. (Source: pto-policy.html, \"Requesting PTO\")\n- If any of the days you want fall on a blackout date at Ridgeline Taos, you'd also need your general manager's sign-off, and PTO isn't normally approved then. (Source: pto-policy.html, \"Blackout dates\")\n\nI'd recommend submitting your request through the scheduling system as soon as possible, noting that you'd like to borrow 2 of the days, and loop in your supervisor, Amanda Ross, to get the approval process started.\n\nCongratulations again, and I hope you have a wonderful honeymoon!\n\nBest,\nPeople and Culture Team\n", "needs_human_review": false}
+  result: Draft saved to week-04/drafts/ridgeline-hotels/03-brittany-honeymoon.txt (not sent).
+
+Claude: I've drafted a reply to Brittany explaining that she has 4 PTO days remaining, 2 short of the 6 she wants. I outlined the PTO borrowing option (up to 3 days from future accrual, with GM approval and a 30-day advance request), the standard 30-day notice requirement for 5+ consecutive days off, and a ...
+
+Stopped: Claude finished its turn without asking for another tool.
+Tool calls: 3
+
+Saved to week-04/drafts/ridgeline-hotels/03-brittany-honeymoon.txt
+Not sent.
+To: brittany.cole@ridgelinehotels.example
+Subject: Re: Honeymoon
+In reply to: 03-brittany-honeymoon.eml
+Organization: ridgeline-hotels
+Drafted: 2026-11-16T19:27:22 by claude-sonnet-5
+
+DRAFT
+Hi Brittany,
+
+Congratulations on your upcoming wedding! 🎉
+
+I checked your balance, and you currently have 4 PTO days remaining. Since you're hoping to take 6 consecutive days, that's 2 days more than you currently have, but you do have an option:
+
+- **Borrowing PTO**: Under our PTO Policy, if a planned absence is longer than your current balance, you can borrow up to 3 PTO days from what you'll earn over the next six months. That would cover the extra 2 days you need. Borrowed days require your general manager's approval, and the request must be submitted at least 30 days in advance. Since your trip is about two months out, you have time to do this if you act soon. (Source: pto-policy.html, "Borrowing PTO you haven't earned yet")
+
+A couple of other things to keep in mind:
+- Requests for 5 or more consecutive days need your supervisor's approval at least 30 days ahead of the start date. (Source: pto-policy.html, "Requesting PTO")
+- If any of the days you want fall on a blackout date at Ridgeline Taos, you'd also need your general manager's sign-off, and PTO isn't normally approved then. (Source: pto-policy.html, "Blackout dates")
+
+I'd recommend submitting your request through the scheduling system as soon as possible, noting that you'd like to borrow 2 of the days, and loop in your supervisor, Amanda Ross, to get the approval process started.
+
+Congratulations again, and I hope you have a wonderful honeymoon!
+
+Best,
+People and Culture Team
+Needs human review: false
+
+Tokens: 7594 input, 1057 output

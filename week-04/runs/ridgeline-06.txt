@@ -1,0 +1,47 @@
+Sender:  danielle.price@ridgelinehotels.example
+Subject: A guest
+Email:   week-04/ridgeline-hotels/sample-emails/06-danielle-guest.eml
+Organization: ridgeline-hotels (week-04/ridgeline-hotels)
+
+Starting hr_mcp_server.py ...
+Tools: search_policy, get_leave_balance, save_reply
+
+Claude: This situation involves harassment and safety concerns, so I should not advise on it myself — it needs to be escalated to a human. Let me prepare a short, kind reply acknowledging her concern and letting her know People and Culture will follow up.
+
+Step 1: search_policy
+  input:  {"query": "harassment reporting guest safety concern"}
+  result: { "query": "harassment reporting guest safety concern", "results": [ { "source": "reporting-concerns-and-safety.html", "title": "Reporting Concerns and Workplace Safety", "section": "Harassment by guests or coworkers", "version": "Effective this year. Owner: People and Culture.", "score": 0.72, "tex...
+
+Step 2: save_reply
+  input:  {"reply": "Hi Danielle,\n\nThank you for reaching out, and I'm so sorry you're going through this. What you're describing \u2014 a guest following you and making comments about your appearance \u2014 is not okay, and you should not have to just \"avoid that room\" as a solution.\n\nRidgeline does not tolerate harassment of team members by anyone, including guests, and this is the kind of concern that needs direct attention from People and Culture, not something I can resolve by email. I'm flagging your message right now so that a member of the People and Culture team can reach out to you directly and promptly to discuss next steps and support you.\n\nIn the meantime, if you feel unsafe at any point, please don't hesitate to remove yourself from the situation and contact a manager or People and Culture immediately, and know that you're protected from any retaliation for having reported this (source: reporting-concerns-and-safety.html).\n\nSomeone will be in touch with you very soon.\n\nTake care,\nHR Assistant, Ridgeline Hotels", "needs_human_review": true}
+  result: Draft saved to week-04/drafts/ridgeline-hotels/06-danielle-guest.txt (not sent).
+
+Claude: I've drafted a reply to Danielle. Since her email describes guest harassment and an unresolved safety concern — and her supervisor's response was inadequate — I did not attempt to resolve it myself. Instead, I: - Acknowledged her situation with empathy - Cited the relevant policy (reporting-concerns...
+
+Stopped: Claude finished its turn without asking for another tool.
+Tool calls: 2
+
+Saved to week-04/drafts/ridgeline-hotels/06-danielle-guest.txt
+Not sent.
+To: danielle.price@ridgelinehotels.example
+Subject: [NEEDS HR REVIEW] Re: A guest
+In reply to: 06-danielle-guest.eml
+Organization: ridgeline-hotels
+Drafted: 2026-11-16T19:28:03 by claude-sonnet-5
+
+DRAFT
+Hi Danielle,
+
+Thank you for reaching out, and I'm so sorry you're going through this. What you're describing — a guest following you and making comments about your appearance — is not okay, and you should not have to just "avoid that room" as a solution.
+
+Ridgeline does not tolerate harassment of team members by anyone, including guests, and this is the kind of concern that needs direct attention from People and Culture, not something I can resolve by email. I'm flagging your message right now so that a member of the People and Culture team can reach out to you directly and promptly to discuss next steps and support you.
+
+In the meantime, if you feel unsafe at any point, please don't hesitate to remove yourself from the situation and contact a manager or People and Culture immediately, and know that you're protected from any retaliation for having reported this (source: reporting-concerns-and-safety.html).
+
+Someone will be in touch with you very soon.
+
+Take care,
+HR Assistant, Ridgeline Hotels
+Needs human review: true
+
+Tokens: 6660 input, 738 output

@@ -1,0 +1,21 @@
+Not sent.
+To: logan.brooks@ridgelinehotels.example
+Subject: [NEEDS HR REVIEW] Re: Days off
+In reply to: 07-logan-seasonal.eml
+Organization: ridgeline-hotels
+Drafted: 2026-11-16T19:28:15 by claude-sonnet-5
+
+DRAFT
+Hi Logan,
+
+Thanks for reaching out, and welcome to the team at the Durango property!
+
+I wasn't able to pull up your PTO balance in our system under this email address, so I don't want to give you an incorrect number. I've flagged this for a member of our People and Culture team to look into and confirm your current PTO balance directly with you.
+
+In the meantime, if you have access to the employee portal, your balance may also be visible there under your personal leave details.
+
+Thanks for your patience, and welcome aboard!
+
+Best,
+HR Assistant, Ridgeline Hotels
+Needs human review: true

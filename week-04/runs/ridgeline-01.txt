@@ -1,0 +1,50 @@
+Sender:  jenna.morales@ridgelinehotels.example
+Subject: PTO question
+Email:   week-04/ridgeline-hotels/sample-emails/01-jenna-pto.eml
+Organization: ridgeline-hotels (week-04/ridgeline-hotels)
+
+Starting hr_mcp_server.py ...
+Tools: search_policy, get_leave_balance, save_reply
+
+Step 1: get_leave_balance
+  input:  {}
+  result: { "email": "jenna.morales@ridgelinehotels.example", "name": "Jenna Morales", "balances": { "PTO Days Remaining": 8, "Sick Days Remaining": 5 }, "details": { "Hotel": "Ridgeline Boulder", "Role": "Front Desk Agent", "Supervisor": "Rachel Evans" } }
+
+Step 2: search_policy
+  input:  {"query": "PTO carryover to next year"}
+  result: { "query": "PTO carryover to next year", "results": [ { "source": "pto-policy.html", "title": "Paid Time Off (PTO) Policy", "section": "Carrying PTO into next year", "version": "Effective this year. Owner: People and Culture.", "score": 0.562, "text": "Paid Time Off (PTO) Policy - Carrying PTO into ...
+
+Step 3: save_reply
+  input:  {"reply": "Hi Jenna,\n\nThanks for reaching out! Here's the info you asked for:\n\n- **PTO balance:** You currently have 8 PTO days remaining for this year.\n- **Carryover:** Per the PTO Policy, you can carry up to 3 unused PTO days into the next calendar year. Any unused days above that 3-day limit are paid out at your regular rate in your first paycheck of January. (Source: pto-policy.html)\n\nSo if you end the year with 8 days unused, 3 would carry over and the remaining 5 would be paid out.\n\nLet me know if you have any other questions!\n\nBest,\nHR\n", "needs_human_review": false}
+  result: Draft saved to week-04/drafts/ridgeline-hotels/01-jenna-pto.txt (not sent).
+
+Claude: I've drafted a reply to Jenna with her current PTO balance (8 days) and the carryover policy (up to 3 days carry over, excess paid out), citing pto-policy.html. The draft has been saved for review.
+
+Stopped: Claude finished its turn without asking for another tool.
+Tool calls: 3
+
+Saved to week-04/drafts/ridgeline-hotels/01-jenna-pto.txt
+Not sent.
+To: jenna.morales@ridgelinehotels.example
+Subject: Re: PTO question
+In reply to: 01-jenna-pto.eml
+Organization: ridgeline-hotels
+Drafted: 2026-11-16T19:24:43 by claude-sonnet-5
+
+DRAFT
+Hi Jenna,
+
+Thanks for reaching out! Here's the info you asked for:
+
+- **PTO balance:** You currently have 8 PTO days remaining for this year.
+- **Carryover:** Per the PTO Policy, you can carry up to 3 unused PTO days into the next calendar year. Any unused days above that 3-day limit are paid out at your regular rate in your first paycheck of January. (Source: pto-policy.html)
+
+So if you end the year with 8 days unused, 3 would carry over and the remaining 5 would be paid out.
+
+Let me know if you have any other questions!
+
+Best,
+HR
+Needs human review: false
+
+Tokens: 6844 input, 453 output

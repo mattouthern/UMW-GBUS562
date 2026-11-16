@@ -1,8 +1,16 @@
 """HR email agent: prepares draft replies to employee emails using Claude's tool use.
 
+Works for any organization whose folder is laid out like week-04/hartwell-hr
+(hr-docs/, employees.csv, system_prompt.txt). Choose it with --org; without
+--org, week-04/hartwell-hr is used.
+
 Usage (from the top of the repository):
     # One email from a file; the draft is written to week-04/drafts/
     .venv/bin/python week-04/agent.py --email week-04/hartwell-hr/sample-emails/03-megan-time-off.eml
+
+    # Another organization; its drafts go to week-04/drafts/<organization folder name>/
+    .venv/bin/python week-04/agent.py --org week-04/ridgeline-hotels \
+        --email week-04/ridgeline-hotels/sample-emails/01-jenna-pto.eml --save week-04/runs/ridgeline-01.txt
 
     # Every unread email in the Gmail inbox; each draft becomes a real Gmail draft
     .venv/bin/python week-04/agent.py --inbox
@@ -13,9 +21,13 @@ Usage (from the top of the repository):
     # Any mode can also copy everything it prints to a UTF-8 text file
     .venv/bin/python week-04/agent.py --inbox --save week-04/logs/inbox-run.txt
 
+Output for each email: the sender and subject first, then each tool step, then the
+reply between a line that says only DRAFT and a line "Needs human review: true" or
+"Needs human review: false". (A reply that --watch actually sent has SENT in place of DRAFT.)
+
 How it works (for each email):
   1. Takes the sender's address from the email's From: header.
-  2. Starts week-04/hr_mcp_server.py with --as-employee <sender>, so the
+  2. Starts week-04/hr_mcp_server.py with --org <folder> --as-employee <sender>, so the
      get_leave_balance tool can only ever return the sender's own balance.
   3. Gives Claude the server's tools (search_policy, get_leave_balance) plus
      save_reply, which is defined here.
@@ -40,7 +52,7 @@ How it works (for each email):
   - Reads an allowlist from the AGENT_ALLOWLIST environment variable (a Codespaces
     secret, beside AGENT_EMAIL). One entry per line (or separated by , or ;):
         your.address@gmail.com = dana.whitfield@hartwellfoods.example
-    The employee address must be in hartwell-hr/employees.csv.
+    The employee address must be in the organization's employees.csv.
   - Before anything else, only the headers are read (without marking the message read):
       * automatic mail (any Auto-Submitted header, or Precedence: bulk / auto_reply)
         is ignored and left unread;
@@ -57,9 +69,10 @@ How it works (for each email):
     placeholders in everything printed (and in --save files), and are removed from the
     email text before it goes to Claude.
 
---email mode keeps the original behavior: save_reply writes a draft file to week-04/drafts/.
+--email mode keeps the original behavior: save_reply writes a draft file to week-04/drafts/
+(week-04/drafts/<organization folder name>/ for organizations other than hartwell-hr).
 
-The system prompt is read from week-04/hartwell-hr/system_prompt.txt on every run.
+The system prompt is read from <organization folder>/system_prompt.txt on every run.
 The API key (API_KEY) and the Gmail login (AGENT_EMAIL) are read from the environment
 at run time and are never printed, logged, or saved.
 """
@@ -86,14 +99,14 @@ from bs4 import BeautifulSoup
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
-from hr_mcp_server import find_employee
+from hr_mcp_server import Org
 from load_inbox import IMAP_HOST, LOGIN_VAR, read_login
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 SERVER = HERE / "hr_mcp_server.py"
-SYSTEM_PROMPT_FILE = HERE / "hartwell-hr" / "system_prompt.txt"
-DRAFTS_DIR = HERE / "drafts"
+DRAFTS_ROOT = HERE / "drafts"
+ORG = None  # the Org in use; set in main() from --org
 SERVER_LOG = HERE / "logs" / "mcp-server.log"  # the server's stderr; ignored by Git
 
 MODEL = "claude-sonnet-5"
@@ -191,26 +204,36 @@ def check_reply_args(args, state):
 
 # ---------------------------------------------------------------------------
 # Draft savers. Each takes (reply, needs_review) and returns (result for Claude,
-# printable copy of the draft). Neither one can send email.
+# details to print above the reply, "DRAFT" or "SENT"). Only --watch can send.
 # ---------------------------------------------------------------------------
 
+def reply_block(label, reply, review):
+    """The reply between a line with only DRAFT (or SENT) and the review line."""
+    return (f"{label}\n{reply.strip()}\n"
+            f"Needs human review: {'true' if review else 'false'}\n")
+
+
+def drafts_dir():
+    return DRAFTS_ROOT if ORG.is_default else DRAFTS_ROOT / ORG.name
+
+
 def file_saver(email_path, email):
-    """--email mode: write the draft to week-04/drafts/<email file name>.txt."""
+    """--email mode: write the draft to week-04/drafts/[<org>/]<email file name>.txt."""
     def save(reply, review):
-        DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
-        path = DRAFTS_DIR / f"{email_path.stem}.txt"
-        text = (
-            "DRAFT - NOT SENT\n"
+        folder = drafts_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"{email_path.stem}.txt"
+        info = (
+            "Not sent.\n"
             f"To: {email['sender']}\n"
             f"Subject: {reply_subject(email['subject'], review)}\n"
-            f"Needs human review: {'YES' if review else 'no'}\n"
             f"In reply to: {email_path.name}\n"
+            f"Organization: {ORG.name}\n"
             f"Drafted: {datetime.now().isoformat(timespec='seconds')} by {MODEL}\n"
-            "\n" + reply.strip() + "\n"
         )
-        path.write_text(text, encoding="utf-8")
+        path.write_text(info + "\n" + reply_block("DRAFT", reply, review), encoding="utf-8")
         shown = path.relative_to(REPO) if path.is_relative_to(REPO) else path
-        return f"Draft saved to {shown} (not sent).", f"Saved to {shown}\n\n{text}"
+        return f"Draft saved to {shown} (not sent).", f"Saved to {shown}\n{info}", "DRAFT"
     return save
 
 
@@ -369,12 +392,10 @@ class GmailInbox:
                         note = f"Sending failed ({e}); kept as a draft instead.\n"
                     else:
                         budget["sent"] += 1
-                        shown = (f"SENT with Gmail SMTP (reply {budget['sent']} of {MAX_SENT})\n"
+                        shown = (f"Sent with Gmail SMTP (reply {budget['sent']} of {MAX_SENT})\n"
                                  f"To: {to_shown}\nSubject: {msg['Subject']}\n"
-                                 f"In-Reply-To: {msg['In-Reply-To'] or '(original had no Message-ID)'}\n"
-                                 "Needs human review: no\n"
-                                 "\n" + reply.strip() + "\n")
-                        return "The reply was emailed to the employee.", shown
+                                 f"In-Reply-To: {msg['In-Reply-To'] or '(original had no Message-ID)'}\n")
+                        return "The reply was emailed to the employee.", shown, "SENT"
 
             self.ensure_connected()
             status, data = self.imap.append(
@@ -391,10 +412,8 @@ class GmailInbox:
             shown = (f"Gmail draft in {self.drafts} (not sent)\n"
                      f"{note}{label_note}"
                      f"To: {to_shown}\nSubject: {msg['Subject']}\n"
-                     f"In-Reply-To: {msg['In-Reply-To'] or '(original had no Message-ID)'}\n"
-                     f"Needs human review: {'YES' if review else 'no'}\n"
-                     "\n" + reply.strip() + "\n")
-            return f"Draft saved in Gmail's {self.drafts} folder (not sent).", shown
+                     f"In-Reply-To: {msg['In-Reply-To'] or '(original had no Message-ID)'}\n")
+            return f"Draft saved in Gmail's {self.drafts} folder (not sent).", shown, "DRAFT"
         return save
 
 
@@ -424,10 +443,11 @@ def save_reply(args, saver, state):
     if error:
         return error, True
     try:
-        result, shown = saver(args["reply"], args["needs_human_review"])
+        result, info, label = saver(args["reply"], args["needs_human_review"])
     except (OSError, RuntimeError, imaplib.IMAP4.error) as e:
         return f"The draft could not be saved: {e}", True
-    state["draft"] = shown
+    state["draft"] = {"info": info, "label": label, "reply": args["reply"],
+                      "review": args["needs_human_review"]}
     return result, False
 
 
@@ -447,12 +467,15 @@ def stop_reason_message(response):
     return f"Claude stopped without a tool request (stop_reason: {reason})."
 
 
-async def run_agent(email, saver, client, save_tool=SAVE_REPLY_TOOL):
+async def run_agent(email, saver, client, save_tool=SAVE_REPLY_TOOL, source=None):
     """One agent run for one email. Returns True if a draft was saved."""
     sender, subject, body = email["sender"], email["subject"], email["body"]
-    system_prompt = SYSTEM_PROMPT_FILE.read_text(encoding="utf-8").strip()
     print(f"Sender:  {sender}")
-    print(f"Subject: {subject}\n")
+    print(f"Subject: {subject}")
+    if source:
+        print(f"Email:   {source}")
+    print(f"Organization: {ORG.name} ({ORG.dir.relative_to(REPO) if ORG.dir.is_relative_to(REPO) else ORG.dir})\n")
+    system_prompt = ORG.system_prompt_file.read_text(encoding="utf-8").strip()
 
     user_msg = (
         "Prepare a reply to this employee email. The email is between the <email> tags.\n\n"
@@ -465,7 +488,8 @@ async def run_agent(email, saver, client, save_tool=SAVE_REPLY_TOOL):
     stop_why = None
 
     server = StdioServerParameters(
-        command=sys.executable, args=[str(SERVER), "--as-employee", sender], cwd=str(REPO),
+        command=sys.executable, cwd=str(REPO),
+        args=[str(SERVER), "--org", str(ORG.dir), "--as-employee", sender],
     )
     SERVER_LOG.parent.mkdir(parents=True, exist_ok=True)
     print("Starting hr_mcp_server.py ...")
@@ -531,8 +555,9 @@ async def run_agent(email, saver, client, save_tool=SAVE_REPLY_TOOL):
     print(f"Stopped: {stop_why}")
     print(f"Tool calls: {calls}\n")
     if state["draft"]:
-        print("===== Draft =====")
-        print(state["draft"])
+        d = state["draft"]
+        print(d["info"])
+        print(reply_block(d["label"], d["reply"], d["review"]))
     else:
         print("No draft was saved (save_reply was not called or failed).\n")
     print(f"Tokens: {tokens_in} input, {tokens_out} output")
@@ -543,8 +568,8 @@ async def run_email_file(email_path, client):
     email = parse_email(email_path.read_bytes())
     if not email["sender"]:
         sys.exit(f"Could not find a sender address in the From: header of {email_path}")
-    print(f"Email:   {email_path.relative_to(REPO) if email_path.is_relative_to(REPO) else email_path}")
-    await run_agent(email, file_saver(email_path, email), client)
+    shown = email_path.relative_to(REPO) if email_path.is_relative_to(REPO) else email_path
+    await run_agent(email, file_saver(email_path, email), client, source=shown)
 
 
 async def run_inbox(client):
@@ -603,9 +628,10 @@ def read_allowlist():
         employee = employee.strip().strip("<>").strip().lower()
         if not sep or "@" not in real or "@" not in employee:
             sys.exit(f"Entry {n} of {ALLOWLIST_VAR} is not in the form "
-                     "'your.address@gmail.com = employee@hartwellfoods.example'.")
-        if not find_employee(employee):
-            sys.exit(f"Entry {n} of {ALLOWLIST_VAR}: {employee} is not in employees.csv.")
+                     "'your.address@gmail.com = employee.address@company.example'.")
+        if not ORG.find_employee(employee):
+            sys.exit(f"Entry {n} of {ALLOWLIST_VAR}: {employee} is not in "
+                     f"{ORG.name}/employees.csv.")
         if allow.get(real, employee) != employee:
             sys.exit(f"Entry {n} of {ALLOWLIST_VAR} lists a sender that is already "
                      "listed for a different employee.")
@@ -791,6 +817,9 @@ def main():
                         help=f"check the inbox every {WATCH_SECONDS} s, only for senders in "
                              f"{ALLOWLIST_VAR}; send replies that need no review "
                              f"(at most {MAX_SENT}); Ctrl+C stops")
+    parser.add_argument("--org", metavar="FOLDER",
+                        help="organization folder with hr-docs/, employees.csv and "
+                             "system_prompt.txt (default: week-04/hartwell-hr)")
     parser.add_argument("--save", metavar="FILE",
                         help="also write everything printed to this text file (UTF-8)")
     args = parser.parse_args()
@@ -803,6 +832,8 @@ def main():
         sys.stdout = Tee(sys.__stdout__, log)
         sys.stderr = Tee(sys.__stderr__, log)
     try:
+        global ORG
+        ORG = Org(args.org)
         api_key = os.environ.get("API_KEY", "").strip()
         if not api_key:
             sys.exit("The API_KEY environment variable is not set.")
