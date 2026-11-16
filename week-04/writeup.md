@@ -3,8 +3,11 @@ My week-04 agent drafts replies to HR emails. Claude answers each email with thr
 
 ## Why This Approach
 Task A: Script, because adding each day's earned PTO is a fixed calculation with the same rule every night, so it needs no language understanding and must be exact and repeatable.
+
 Task B: One model call, because rewriting one known document into an FAQ is a single writing job with all the input given up front, and there is nothing to look up or decide along the way.
+
 Task C: Agent, because each email asks something different, so the model has to decide which tools to use (staffing records, the shift-swap policy, or both) and in what order before it can reply.
+
 Email 5 protection: Tools, because the MCP server is started with --as-employee for the sender, so get_leave_balance takes no inputs and can only return Nicole's own balance; even if Claude had obeyed the email, no tool could give it anyone else's balance.
 
 ## Example Run
