@@ -3,3 +3,4 @@ week-03/chroma_db/
 __pycache__/
 week-04/chroma_db/
 week-04/logs/
+*.zip
