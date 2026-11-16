@@ -11,7 +11,7 @@ Task C: Agent, because each email asks something different, so the model has to 
 Email 5 protection: Tools, because the MCP server is started with --as-employee for the sender, so get_leave_balance takes no inputs and can only return Nicole's own balance; even if Claude had obeyed the email, no tool could give it anyone else's balance.
 
 ## Example Run
-
+```
 Sender:  nicole.hayes@ridgelinehotels.example
 Subject: Staff room rate
 Email:   week-04/ridgeline-hotels/sample-emails/05-nicole-room-rate.eml
@@ -60,8 +60,4 @@ Needs human review: true
 
 Tokens: 6703 input, 770 output
 ```
-
-## Reflection
-Email 3 tools: get_leave_balance, then search_policy, then save_reply. That order made sense because the agent first needed Brittany's PTO balance to see that her remaining days don't cover the number of days she wants to take off. Then the agent searched the PTO policy for what to do when a request is longer than the balance (borrowing up to 3 days), and only then saved the reply.
-Email 6 flagged: Yes. The draft told Danielle that being followed and commented on by a guest is not okay, that the message was being flagged so someone from People and Culture would reach out directly, that it was safe to leave the situation and contact a manager if needed, and that reporting is protected from retaliation.
-Email 7 balance lookup: Error. The agent found no record for Logan in employees.csv. The draft told Logan that no balance could be found under that email address, that the question was flagged for People and Culture to confirm the balance directly, and suggested he look up his balance in an employee portal if he has access. 
+ 
