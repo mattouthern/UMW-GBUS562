@@ -1,17 +1,23 @@
 """Orchestrator for one supplier email: Claude decides which specialists to use.
 
-An agent (claude-sonnet-5) gets the system prompt in brookfield-bikes/prompts/orchestrator.txt
+An agent (claude-sonnet-5) gets the system prompt in <company folder>/prompts/orchestrator.txt
 and four tools:
     run_supply_analyst                  runs the analyst from specialists.py
     draft_supplier_reply                drafts the supplier reply (needs the analyst's brief)
     draft_customer_notice(order_id)     drafts a notice for one order at risk
     finish(summary, decision_needed)    ends the job
-Each draft goes through the same review step as the pipeline. The agent stops after 10 tool
-calls. Each choice it makes is printed, then the same summary as pipeline.py.
+Each draft goes through the same review step as the pipeline and is printed once as its
+final draft. The agent stops after 10 tool calls. Each choice it makes is printed, then the
+same summary as pipeline.py.
 
 Usage (from the top of the repository):
     .venv/bin/python week-05/orchestrator.py --email week-05/brookfield-bikes/supplier-emails/02-kendall-tire-options.eml
+    .venv/bin/python week-05/orchestrator.py --org copperline-coffee \
+        --email week-05/copperline-coffee/supplier-emails/01-danforth-pump-delay.eml
     .venv/bin/python week-05/orchestrator.py --email <file.eml> --save run.txt
+
+--org names the company folder (data, prompts; see org_data.py): a path, or a folder name
+in week-05. Without it, week-05/brookfield-bikes is used.
 
 --save also writes everything printed to the named text file (UTF-8).
 """
@@ -22,6 +28,7 @@ import sys
 from pathlib import Path
 
 import specialists as sp
+from org_data import add_org_argument
 from pipeline import Tee, summary
 
 MAX_TOOL_CALLS = 10
@@ -56,7 +63,7 @@ TOOLS = [
         ),
         "input_schema": {
             "type": "object",
-            "properties": {"order_id": {"type": "string", "description": "Order ID, such as O-1043."}},
+            "properties": {"order_id": {"type": "string", "description": "Order ID from the brief."}},
             "required": ["order_id"],
             "additionalProperties": False,
         },
@@ -64,7 +71,7 @@ TOOLS = [
     {
         "name": "finish",
         "description": (
-            "End the job. Give a short summary for Brookfield's purchasing manager and say "
+            "End the job. Give a short summary for the company's purchasing manager and say "
             "whether a person must make a decision."
         ),
         "input_schema": {
@@ -133,9 +140,10 @@ class Job:
         return f"Unknown tool: {name}", True
 
 
-def run(email_path):
+def run(email_path, org=None):
     email = email_path.read_text(encoding="utf-8")
     print(f"Orchestrator for {email_path}")
+    sp.set_org(org)
     print(f"Model: {sp.MODEL}")
 
     job = Job(email)
@@ -188,16 +196,17 @@ def run(email_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Let Claude coordinate Brookfield's specialists on one supplier email.")
+    parser = argparse.ArgumentParser(description="Let Claude coordinate a company's specialists on one supplier email.")
     parser.add_argument("--email", required=True, type=Path, help="path of one supplier email")
     parser.add_argument("--save", metavar="FILE", type=Path,
                         help="also write everything printed to this text file (UTF-8)")
+    add_org_argument(parser)
     args = parser.parse_args()
     if not args.email.is_file():
         sys.exit(f"No such email file: {args.email}")
 
     if not args.save:
-        run(args.email)
+        run(args.email, args.org)
         return
 
     args.save.parent.mkdir(parents=True, exist_ok=True)
@@ -205,7 +214,7 @@ def main():
         out, err = sys.stdout, sys.stderr
         sys.stdout, sys.stderr = Tee(out, f), Tee(err, f)
         try:
-            run(args.email)
+            run(args.email, args.org)
         finally:
             sys.stdout, sys.stderr = out, err
     print(f"\nSaved the output to {args.save}")

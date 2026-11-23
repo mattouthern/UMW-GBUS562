@@ -1,0 +1,199 @@
+Pipeline for week-05/copperline-coffee/supplier-emails/01-danforth-pump-delay.eml
+Company folder: week-05/copperline-coffee
+  columns in orders.csv: product = 'product', quantity = 'units', ship_day = 'ship_by_day'
+  columns in bill-of-materials.csv: product = 'product', parts_per_unit = 'per_unit'
+Model: claude-sonnet-5
+
+=== Step 1: supply analyst
+
+>>> HANDOFF  coordinator -> analyst: supplier email (696 chars)
+    [tokens] analyst: 2637 in, 139 out (call 1; running total 2637 in, 139 out)
+    analyst tool call 1/10: get_part {"part_id": "PU-20"}
+    analyst tool call 2/10: get_orders_for_part {"part_id": "PU-20"}
+    [tokens] analyst: 3801 in, 108 out (call 2; running total 6438 in, 247 out)
+    analyst tool call 3/10: check_coverage {"part_id": "PU-20", "arrivals": [{"qty": 40, "day": 4}, {"qty": 160, "day": 19}]}
+    [tokens] analyst: 4966 in, 659 out (call 3; running total 11404 in, 906 out)
+
+>>> HANDOFF  analyst -> coordinator: brief for PU-20, 3 order(s) at risk, 3 tool call(s)
+
+ANALYST'S BRIEF
+{
+  "part_id": "PU-20",
+  "what_changed": "Of the 200 pumps on PO-5512, only 40 will arrive on day 4 as scheduled, with the remaining 160 now arriving on day 19 (15 days later than originally planned).",
+  "orders_at_risk": [
+    {
+      "order_id": "O-2203",
+      "customer": "Elm State University Dining",
+      "units_short": 10,
+      "ship_day": 12,
+      "ready_day": 19,
+      "late_penalty": true
+    },
+    {
+      "order_id": "O-2204",
+      "customer": "Kettle & Crumb Bakery",
+      "units_short": 20,
+      "ship_day": 15,
+      "ready_day": 19,
+      "late_penalty": false
+    },
+    {
+      "order_id": "O-2205",
+      "customer": "Tall Pines Coffee House",
+      "units_short": 25,
+      "ship_day": 17,
+      "ready_day": 19,
+      "late_penalty": true
+    }
+  ],
+  "options": [],
+  "decisions_for_a_person": [
+    "Decide whether to accept the delayed 160-unit shipment on day 19 or seek an alternate/expedited source for the shortfall.",
+    "Decide how to prioritize the three affected orders (O-2203, O-2204, O-2205) given two carry late penalties.",
+    "Decide whether to notify the three affected customers proactively about the delay.",
+    "Decide what information to send back to Danforth Pump Works (customer names/quantities) given confidentiality considerations."
+  ],
+  "supplier_questions": [
+    "Please send a list of the customer orders these pumps are for, with each customer's name and quantity."
+  ]
+}
+
+=== Step 2: customer notices (3 order(s) at risk)
+
+>>> HANDOFF  coordinator -> customer_writer: facts for order O-2203 only
+    [tokens] customer_writer: 363 in, 151 out (call 1; running total 363 in, 151 out)
+
+>>> HANDOFF  customer_writer -> coordinator: notice for O-2203 (447 chars)
+
+>>> HANDOFF  coordinator -> reviewer: customer draft + facts
+    [tokens] reviewer: 589 in, 235 out (call 1; running total 589 in, 235 out)
+
+>>> HANDOFF  reviewer -> coordinator: APPROVE
+    name check (supplier names): pass
+    saved week-05/drafts/copperline-coffee/20261123-212601-customer-O-2203.md  [MARKED FOR A PERSON]
+
+FINAL DRAFT TO CUSTOMER O-2203
+Subject: Update on Your Order O-2203
+
+Dear Elm State University Dining,
+
+We're writing about order O-2203 for 50 units of the Cafe One. This order is now expected to ship 7 days later than originally planned.
+
+We apologize for the delay. It was caused by a delay in a part from one of our suppliers.
+
+We will keep you updated on the status of your order. Thank you for your patience and understanding.
+
+Customer Service, Copperline Coffee Machines
+Marked for a person: yes
+
+>>> HANDOFF  coordinator -> customer_writer: facts for order O-2204 only
+    [tokens] customer_writer: 370 in, 166 out (call 2; running total 733 in, 317 out)
+
+>>> HANDOFF  customer_writer -> coordinator: notice for O-2204 (440 chars)
+
+>>> HANDOFF  coordinator -> reviewer: customer draft + facts
+    [tokens] reviewer: 602 in, 155 out (call 2; running total 1191 in, 390 out)
+
+>>> HANDOFF  reviewer -> coordinator: APPROVE
+    name check (supplier names): pass
+    saved week-05/drafts/copperline-coffee/20261123-212605-customer-O-2204.md
+
+FINAL DRAFT TO CUSTOMER O-2204
+Subject: Update on Your Order O-2204
+
+Dear Kettle & Crumb Bakery,
+
+We're writing to update you on order O-2204 for 10 Cafe Duo units. This order is now expected to ship 4 days later than originally planned.
+
+We apologize for the delay. It is due to a delay in a part from one of our suppliers.
+
+We appreciate your patience and will keep you informed of any further updates regarding your order.
+
+Customer Service, Copperline Coffee Machines
+Marked for a person: no
+
+>>> HANDOFF  coordinator -> customer_writer: facts for order O-2205 only
+    [tokens] customer_writer: 366 in, 156 out (call 3; running total 1099 in, 473 out)
+
+>>> HANDOFF  customer_writer -> coordinator: notice for O-2205 (448 chars)
+
+>>> HANDOFF  coordinator -> reviewer: customer draft + facts
+    [tokens] reviewer: 597 in, 188 out (call 3; running total 1788 in, 578 out)
+
+>>> HANDOFF  reviewer -> coordinator: APPROVE
+    name check (supplier names): pass
+    saved week-05/drafts/copperline-coffee/20261123-212610-customer-O-2205.md  [MARKED FOR A PERSON]
+
+FINAL DRAFT TO CUSTOMER O-2205
+Subject: Update on Your Order O-2205
+
+Dear Tall Pines Coffee House,
+
+We're writing about your order O-2205 for 25 units of the Cafe One. This order is now expected to ship 2 days later than originally planned.
+
+We apologize for this delay. It is due to a delay in a part from one of our suppliers.
+
+We appreciate your patience and understanding, and we'll keep you informed if anything further changes.
+
+Customer Service, Copperline Coffee Machines
+Marked for a person: yes
+
+=== Step 3: supplier reply
+
+>>> HANDOFF  coordinator -> supplier_writer: email + brief with customer names removed
+    [tokens] supplier_writer: 1127 in, 303 out (call 1; running total 1127 in, 303 out)
+
+>>> HANDOFF  supplier_writer -> coordinator: supplier draft (887 chars)
+
+>>> HANDOFF  coordinator -> reviewer: supplier draft + facts
+    [tokens] reviewer: 1493 in, 510 out (call 4; running total 3281 in, 1088 out)
+
+>>> HANDOFF  reviewer -> coordinator: APPROVE
+    name check (customer names): pass
+    saved week-05/drafts/copperline-coffee/20261123-212619-supplier-PU-20.md  [MARKED FOR A PERSON]
+
+FINAL DRAFT TO SUPPLIER
+Subject: RE: PO-5512 - PU-20 pumps - partial shipment
+
+Hello Diane,
+
+Thank you for the update. To confirm: of the 200 PU-20 pumps on PO-5512, 40 will arrive on the scheduled date, with the remaining 160 now arriving 15 days later than planned.
+
+This shortfall affects three of our downstream orders, totaling 55 units, with delays of up to 15 days against original commitments. Some of these carry late penalties on our end, so minimizing the delay matters.
+
+We're not able to share customer names or order details — that information is confidential. We can say that 55 units across three orders are impacted.
+
+Please let us know if there's any way to expedite a portion of the 160 units sooner, even a partial early release would help reduce the impact. If any decision is needed from us, we'll confirm by whatever date you require.
+
+Best regards,
+Purchasing, Copperline Coffee Machines
+Marked for a person: yes
+
+============================================================
+SUMMARY
+============================================================
+
+Drafts saved: 4
+  customer O-2203  APPROVE 0 revision(s)  week-05/drafts/copperline-coffee/20261123-212601-customer-O-2203.md
+  customer O-2204  APPROVE 0 revision(s)  week-05/drafts/copperline-coffee/20261123-212605-customer-O-2204.md
+  customer O-2205  APPROVE 0 revision(s)  week-05/drafts/copperline-coffee/20261123-212610-customer-O-2205.md
+  supplier PU-20   APPROVE 0 revision(s)  week-05/drafts/copperline-coffee/20261123-212619-supplier-PU-20.md
+
+Drafts marked for a person: 3
+  customer O-2203: order O-2203 has a late penalty
+  customer O-2205: order O-2205 has a late penalty
+  supplier PU-20: order(s) with a late penalty: O-2203, O-2205
+
+Decisions for a person: 4
+  - Decide whether to accept the delayed 160-unit shipment on day 19 or seek an alternate/expedited source for the shortfall.
+  - Decide how to prioritize the three affected orders (O-2203, O-2204, O-2205) given two carry late penalties.
+  - Decide whether to notify the three affected customers proactively about the delay.
+  - Decide what information to send back to Danforth Pump Works (customer names/quantities) given confidentiality considerations.
+
+Tokens used by each specialist
+  specialist       calls     input    output
+  analyst              3     11404       906
+  customer_writer      3      1099       473
+  reviewer             4      3281      1088
+  supplier_writer      1      1127       303
+  total                      16911      2770

@@ -1,0 +1,156 @@
+Orchestrator for week-05/copperline-coffee/supplier-emails/02-marlow-boiler-options.eml
+Company folder: week-05/copperline-coffee
+  columns in orders.csv: product = 'product', quantity = 'units', ship_day = 'ship_by_day'
+  columns in bill-of-materials.csv: product = 'product', parts_per_unit = 'per_unit'
+Model: claude-sonnet-5
+    [tokens] orchestrator: 1535 in, 71 out (call 1; running total 1535 in, 71 out)
+
+### CHOICE 1/10: run_supply_analyst
+
+>>> HANDOFF  coordinator -> analyst: supplier email (711 chars)
+    [tokens] analyst: 2644 in, 136 out (call 1; running total 2644 in, 136 out)
+    analyst tool call 1/10: get_part {"part_id": "BL-12"}
+    analyst tool call 2/10: get_orders_for_part {"part_id": "BL-12"}
+    [tokens] analyst: 3808 in, 285 out (call 2; running total 6452 in, 421 out)
+    analyst tool call 3/10: check_coverage {"part_id": "BL-12", "arrivals": [{"qty": 80, "day": 7}, {"qty": 120, "day": 21}]}
+    analyst tool call 4/10: check_coverage {"part_id": "BL-12", "arrivals": [{"qty": 200, "day": 13}]}
+    [tokens] analyst: 6039 in, 796 out (call 3; running total 12491 in, 1217 out)
+
+>>> HANDOFF  analyst -> coordinator: brief for BL-12, 1 order(s) at risk, 4 tool call(s)
+
+ANALYST'S BRIEF
+{
+  "part_id": "BL-12",
+  "what_changed": "PO-5520 for 200 BL-12 boilers, originally due day 7, will now arrive either split as 80 on day 7 and 120 on day 21 (Option A), or all 200 together on day 13 (Option B, the supplier's default if no reply is given).",
+  "orders_at_risk": [
+    {
+      "order_id": "O-2203",
+      "customer": "Elm State University Dining",
+      "units_short": 40,
+      "ship_day": 12,
+      "ready_day": 13,
+      "late_penalty": true
+    }
+  ],
+  "options": [
+    {
+      "name": "Option A: 80 on day 7, 120 on day 21",
+      "order_ids_at_risk": [
+        "O-2205"
+      ]
+    },
+    {
+      "name": "Option B: all 200 on day 13",
+      "order_ids_at_risk": [
+        "O-2203"
+      ]
+    }
+  ],
+  "decisions_for_a_person": [
+    "Choose between Option A (risks delaying order O-2205, 4 days late, which has a late penalty) and Option B (risks delaying order O-2203, 1 day late, which also has a late penalty).",
+    "Respond to Marlow Metalworks within three business days or Option B will be applied by default."
+  ],
+  "supplier_questions": [
+    "Which shipping option (A or B) would you like us to use for PO-5520?"
+  ]
+}
+    [tokens] orchestrator: 2021 in, 505 out (call 2; running total 3556 in, 576 out)
+
+### CHOICE 2/10: draft_supplier_reply
+
+>>> HANDOFF  coordinator -> supplier_writer: email + brief with customer names removed
+    [tokens] supplier_writer: 1083 in, 325 out (call 1; running total 1083 in, 325 out)
+
+>>> HANDOFF  supplier_writer -> coordinator: supplier draft (906 chars)
+
+>>> HANDOFF  coordinator -> reviewer: supplier draft + facts
+    [tokens] reviewer: 1476 in, 1203 out (call 1; running total 1476 in, 1203 out)
+
+>>> HANDOFF  reviewer -> coordinator: APPROVE
+    name check (customer names): pass
+    saved week-05/drafts/copperline-coffee/20261123-213940-supplier-BL-12.md  [MARKED FOR A PERSON]
+
+FINAL DRAFT TO SUPPLIER
+Subject: RE: PO-5520 - BL-12 boilers - please choose a shipping option
+
+Hi Victor,
+
+Thanks for the heads-up on PO-5520 (200 BL-12 boilers, originally due day 7).
+
+We understand the two options:
+- Option A: 80 units on day 7, remaining 120 on day 21
+- Option B: all 200 units on day 13
+
+Both options have downstream impact on our side. Option B leaves one of our orders 1 day late; Option A leaves another order short and delayed by about 4 days. We're still evaluating which is less disruptive and will confirm our choice within your three-business-day window.
+
+In the meantime, is there any way to pull forward part of the shipment — for example, getting more than 80 units out on day 7, or shortening the day 21 delivery under Option A? Any reduction in the shortfall or delay would help us.
+
+We'll get back to you with our decision by your deadline.
+
+Best regards,
+Purchasing, Copperline Coffee Machines
+Marked for a person: yes
+
+### CHOICE 3/10: draft_customer_notice {"order_id": "O-2203"}
+
+>>> HANDOFF  coordinator -> customer_writer: facts for order O-2203 only
+    [tokens] customer_writer: 363 in, 128 out (call 1; running total 363 in, 128 out)
+
+>>> HANDOFF  customer_writer -> coordinator: notice for O-2203 (382 chars)
+
+>>> HANDOFF  coordinator -> reviewer: customer draft + facts
+    [tokens] reviewer: 566 in, 200 out (call 2; running total 2042 in, 1403 out)
+
+>>> HANDOFF  reviewer -> coordinator: APPROVE
+    name check (supplier names): pass
+    saved week-05/drafts/copperline-coffee/20261123-213944-customer-O-2203.md  [MARKED FOR A PERSON]
+
+FINAL DRAFT TO CUSTOMER O-2203
+Dear Elm State University Dining,
+
+We're writing about your order O-2203 for 50 Cafe One units. This order is now expected to ship 1 day later than originally planned.
+
+We apologize for the delay. It was caused by a delay in a part from one of our suppliers.
+
+Thank you for your patience, and please reach out if you have any questions.
+
+Customer Service, Copperline Coffee Machines
+Marked for a person: yes
+    [tokens] orchestrator: 3222 in, 520 out (call 3; running total 6778 in, 1096 out)
+
+### CHOICE 4/10: finish {"summary": "Marlow Metalworks can't ship PO-5520 (200 BL-12 boilers) on time due to reduced capacity. They offered two options: (A) 80 units on day 7 + 120 on day 21, or (B) all 200 on day 13 (their default if we don't respond within 3 business days). Option B would make order O-2203 (Elm State University Dining) 1 day late with a penalty; Option A would delay order O-2205 by ~4 days. A reply to the supplier has been drafted asking if the shortfall/delay can be reduced and noting we'll confirm our choice within the deadline. A customer notice for O-2203 (the order at risk under the default Option B) has also been drafted. Both drafts are saved for review. A person needs to decide between Option A and Option B and respond to Marlow within the 3-business-day window; if Option A is chosen instead, a notice for O-2205 will also be needed.", "decision_needed": true}
+
+============================================================
+ORCHESTRATOR'S FINISH
+============================================================
+
+Decision needed by a person: YES
+
+Marlow Metalworks can't ship PO-5520 (200 BL-12 boilers) on time due to reduced capacity. They offered two options: (A) 80 units on day 7 + 120 on day 21, or (B) all 200 on day 13 (their default if we don't respond within 3 business days). Option B would make order O-2203 (Elm State University Dining) 1 day late with a penalty; Option A would delay order O-2205 by ~4 days. A reply to the supplier has been drafted asking if the shortfall/delay can be reduced and noting we'll confirm our choice within the deadline. A customer notice for O-2203 (the order at risk under the default Option B) has also been drafted. Both drafts are saved for review. A person needs to decide between Option A and Option B and respond to Marlow within the 3-business-day window; if Option A is chosen instead, a notice for O-2205 will also be needed.
+
+Tool calls used: 4/10
+
+============================================================
+SUMMARY
+============================================================
+
+Drafts saved: 2
+  supplier BL-12   APPROVE 0 revision(s)  week-05/drafts/copperline-coffee/20261123-213940-supplier-BL-12.md
+  customer O-2203  APPROVE 0 revision(s)  week-05/drafts/copperline-coffee/20261123-213944-customer-O-2203.md
+
+Drafts marked for a person: 2
+  supplier BL-12: order(s) with a late penalty: O-2203
+  customer O-2203: order O-2203 has a late penalty
+
+Decisions for a person: 2
+  - Choose between Option A (risks delaying order O-2205, 4 days late, which has a late penalty) and Option B (risks delaying order O-2203, 1 day late, which also has a late penalty).
+  - Respond to Marlow Metalworks within three business days or Option B will be applied by default.
+
+Tokens used by each specialist
+  specialist       calls     input    output
+  orchestrator         3      6778      1096
+  analyst              3     12491      1217
+  supplier_writer      1      1083       325
+  reviewer             2      2042      1403
+  customer_writer      1       363       128
+  total                      22757      4169

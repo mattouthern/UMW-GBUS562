@@ -1,0 +1,137 @@
+Pipeline for week-05/copperline-coffee/supplier-emails/02-marlow-boiler-options.eml
+Company folder: week-05/copperline-coffee
+  columns in orders.csv: product = 'product', quantity = 'units', ship_day = 'ship_by_day'
+  columns in bill-of-materials.csv: product = 'product', parts_per_unit = 'per_unit'
+Model: claude-sonnet-5
+
+=== Step 1: supply analyst
+
+>>> HANDOFF  coordinator -> analyst: supplier email (711 chars)
+    [tokens] analyst: 2644 in, 137 out (call 1; running total 2644 in, 137 out)
+    analyst tool call 1/10: get_part {"part_id": "BL-12"}
+    analyst tool call 2/10: get_orders_for_part {"part_id": "BL-12"}
+    [tokens] analyst: 3809 in, 269 out (call 2; running total 6453 in, 406 out)
+    analyst tool call 3/10: check_coverage {"part_id": "BL-12", "arrivals": [{"qty": 80, "day": 7}, {"qty": 120, "day": 21}]}
+    analyst tool call 4/10: check_coverage {"part_id": "BL-12", "arrivals": [{"qty": 200, "day": 13}]}
+    [tokens] analyst: 6024 in, 1254 out (call 3; running total 12477 in, 1660 out)
+
+>>> HANDOFF  analyst -> coordinator: brief for BL-12, 1 order(s) at risk, 4 tool call(s)
+
+ANALYST'S BRIEF
+{
+  "part_id": "BL-12",
+  "what_changed": "PO-5520's 200 BL-12 boilers, originally due day 7, will now arrive either split as 80 on day 7 and 120 on day 21 (Option A), or all 200 together on day 13 (Option B, the supplier's default if no reply is received).",
+  "orders_at_risk": [
+    {
+      "order_id": "O-2203",
+      "customer": "Elm State University Dining",
+      "units_short": 40,
+      "ship_day": 12,
+      "ready_day": 13,
+      "late_penalty": true
+    }
+  ],
+  "options": [
+    {
+      "name": "Option A: 80 on day 7, 120 on day 21",
+      "order_ids_at_risk": [
+        "O-2205"
+      ]
+    },
+    {
+      "name": "Option B: all 200 on day 13",
+      "order_ids_at_risk": [
+        "O-2203"
+      ]
+    }
+  ],
+  "decisions_for_a_person": [
+    "Choose between Option A (risks delaying O-2205, a late-penalty order, by 4 days) and Option B (risks delaying O-2203, a late-penalty order, by 1 day)",
+    "Respond to Marlow Metalworks within three business days or Option B will be applied by default"
+  ],
+  "supplier_questions": [
+    "Which shipping option would you like, Option A or Option B?"
+  ]
+}
+
+=== Step 2: customer notices (1 order(s) at risk)
+
+>>> HANDOFF  coordinator -> customer_writer: facts for order O-2203 only
+    [tokens] customer_writer: 363 in, 128 out (call 1; running total 363 in, 128 out)
+
+>>> HANDOFF  customer_writer -> coordinator: notice for O-2203 (383 chars)
+
+>>> HANDOFF  coordinator -> reviewer: customer draft + facts
+    [tokens] reviewer: 566 in, 229 out (call 1; running total 566 in, 229 out)
+
+>>> HANDOFF  reviewer -> coordinator: APPROVE
+    name check (supplier names): pass
+    saved week-05/drafts/copperline-coffee/20261123-212809-customer-O-2203.md  [MARKED FOR A PERSON]
+
+FINAL DRAFT TO CUSTOMER O-2203
+Dear Elm State University Dining,
+
+We're writing about your order O-2203 for 50 Cafe One units. This order is now expected to ship 1 day later than originally planned.
+
+We apologize for this delay. It was caused by a delay in a part from one of our suppliers.
+
+Thank you for your patience, and please reach out if you have any questions.
+
+Customer Service, Copperline Coffee Machines
+Marked for a person: yes
+
+=== Step 3: supplier reply
+
+>>> HANDOFF  coordinator -> supplier_writer: email + brief with customer names removed
+    [tokens] supplier_writer: 1073 in, 272 out (call 1; running total 1073 in, 272 out)
+
+>>> HANDOFF  supplier_writer -> coordinator: supplier draft (782 chars)
+
+>>> HANDOFF  coordinator -> reviewer: supplier draft + facts
+    [tokens] reviewer: 1413 in, 1429 out (call 2; running total 1979 in, 1658 out)
+
+>>> HANDOFF  reviewer -> coordinator: APPROVE
+    name check (customer names): pass
+    saved week-05/drafts/copperline-coffee/20261123-212828-supplier-BL-12.md  [MARKED FOR A PERSON]
+
+FINAL DRAFT TO SUPPLIER
+Hi Victor,
+
+Thank you for flagging this. To confirm our understanding of PO-5520 (200 BL-12 boilers, originally due day 7):
+
+- Option A: 80 units on day 7, remaining 120 on day 21
+- Option B: all 200 units together on day 13
+
+Both options have downstream impact for us — Option A risks a 4-day delay on one order, Option B risks a 1-day delay on another. We will confirm our choice within your three-business-day window.
+
+In the meantime, is there any way to pull the timeline in further on either option — for example, shipping a larger partial quantity sooner, or shortening the six-day delay in Option B? Any reduction in units short or days delayed would help us.
+
+We'll get back to you with a decision before your deadline.
+
+Best regards,
+Purchasing, Copperline Coffee Machines
+Marked for a person: yes
+
+============================================================
+SUMMARY
+============================================================
+
+Drafts saved: 2
+  customer O-2203  APPROVE 0 revision(s)  week-05/drafts/copperline-coffee/20261123-212809-customer-O-2203.md
+  supplier BL-12   APPROVE 0 revision(s)  week-05/drafts/copperline-coffee/20261123-212828-supplier-BL-12.md
+
+Drafts marked for a person: 2
+  customer O-2203: order O-2203 has a late penalty
+  supplier BL-12: order(s) with a late penalty: O-2203
+
+Decisions for a person: 2
+  - Choose between Option A (risks delaying O-2205, a late-penalty order, by 4 days) and Option B (risks delaying O-2203, a late-penalty order, by 1 day)
+  - Respond to Marlow Metalworks within three business days or Option B will be applied by default
+
+Tokens used by each specialist
+  specialist       calls     input    output
+  analyst              3     12477      1660
+  customer_writer      1       363       128
+  reviewer             2      1979      1658
+  supplier_writer      1      1073       272
+  total                      15892      3718

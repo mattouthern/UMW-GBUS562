@@ -5,12 +5,18 @@
     3. A reply to the supplier.
 
 Every draft goes through the review step (writer, reviewer with at most 2 revisions, name
-check, saved in week-05/drafts/, marked for a person when needed). At the end it prints a
-summary: drafts saved, drafts marked for a person, decisions for a person, and total tokens.
+check, saved in week-05/drafts/<company folder>/, marked for a person when needed), then is
+printed once as its final draft. At the end it prints a summary: drafts saved, drafts marked
+for a person, decisions for a person, and total tokens.
 
 Usage (from the top of the repository):
     .venv/bin/python week-05/pipeline.py --email week-05/brookfield-bikes/supplier-emails/01-northgate-controller-delay.eml
+    .venv/bin/python week-05/pipeline.py --org copperline-coffee \
+        --email week-05/copperline-coffee/supplier-emails/01-danforth-pump-delay.eml
     .venv/bin/python week-05/pipeline.py --email <file.eml> --save run.txt
+
+--org names the company folder (data, prompts; see org_data.py): a path, or a folder name
+in week-05. Without it, week-05/brookfield-bikes is used.
 
 --save also writes everything printed to the named text file (UTF-8).
 """
@@ -20,6 +26,7 @@ import sys
 from pathlib import Path
 
 import specialists as sp
+from org_data import add_org_argument
 
 
 class Tee:
@@ -38,9 +45,10 @@ class Tee:
         self.file.flush()
 
 
-def run(email_path):
+def run(email_path, org=None):
     email = email_path.read_text(encoding="utf-8")
     print(f"Pipeline for {email_path}")
+    sp.set_org(org)
     print(f"Model: {sp.MODEL}")
 
     print("\n=== Step 1: supply analyst")
@@ -72,7 +80,7 @@ def summary(brief, results):
     print(f"\nDrafts saved: {len(saved)}")
     for r in saved:
         print(f"  {r['kind']:<9}{r['key']:<8}{r['verdict']:<8}"
-              f"{r['revisions']} revision(s)  {Path(r['path']).relative_to(sp.HERE.parent)}")
+              f"{r['revisions']} revision(s)  {sp.show(r['path'])}")
     for r in results:
         if not r["path"]:
             print(f"  {r['kind']:<9}{r['key']:<8}not saved: no reply needed")
@@ -90,16 +98,17 @@ def summary(brief, results):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run Brookfield's specialists on one supplier email.")
+    parser = argparse.ArgumentParser(description="Run a company's specialists on one supplier email.")
     parser.add_argument("--email", required=True, type=Path, help="path of one supplier email")
     parser.add_argument("--save", metavar="FILE", type=Path,
                         help="also write everything printed to this text file (UTF-8)")
+    add_org_argument(parser)
     args = parser.parse_args()
     if not args.email.is_file():
         sys.exit(f"No such email file: {args.email}")
 
     if not args.save:
-        run(args.email)
+        run(args.email, args.org)
         return
 
     args.save.parent.mkdir(parents=True, exist_ok=True)
@@ -107,7 +116,7 @@ def main():
         out, err = sys.stdout, sys.stderr
         sys.stdout, sys.stderr = Tee(out, f), Tee(err, f)
         try:
-            run(args.email)
+            run(args.email, args.org)
         finally:
             sys.stdout, sys.stderr = out, err
     print(f"\nSaved the output to {args.save}")

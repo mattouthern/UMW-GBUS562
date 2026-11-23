@@ -1,0 +1,33 @@
+Orchestrator for week-05/copperline-coffee/supplier-emails/04-pelham-maintenance-closure.eml
+Company folder: week-05/copperline-coffee
+  columns in orders.csv: product = 'product', quantity = 'units', ship_day = 'ship_by_day'
+  columns in bill-of-materials.csv: product = 'product', parts_per_unit = 'per_unit'
+Model: claude-sonnet-5
+    [tokens] orchestrator: 1450 in, 342 out (call 1; running total 1450 in, 342 out)
+
+### CHOICE 1/10: finish {"summary": "Pelham Fittings notified of a one-week plant maintenance closure starting in four weeks. They explicitly confirmed that our open order PO-5540 (60 SW-3 steam wands) ships before the closure and will arrive on schedule, with no action needed on our side. No impact to orders or coverage, so no analyst review or customer notices were required. No supplier reply needed either since no questions or changes were raised.", "decision_needed": false}
+
+============================================================
+ORCHESTRATOR'S FINISH
+============================================================
+
+Decision needed by a person: no
+
+Pelham Fittings notified of a one-week plant maintenance closure starting in four weeks. They explicitly confirmed that our open order PO-5540 (60 SW-3 steam wands) ships before the closure and will arrive on schedule, with no action needed on our side. No impact to orders or coverage, so no analyst review or customer notices were required. No supplier reply needed either since no questions or changes were raised.
+
+Tool calls used: 1/10
+
+============================================================
+SUMMARY
+============================================================
+
+Drafts saved: 0
+
+Drafts marked for a person: 0
+
+Decisions for a person: 0
+
+Tokens used by each specialist
+  specialist       calls     input    output
+  orchestrator         1      1450       342
+  total                       1450       342

@@ -1,4 +1,4 @@
-"""Four specialists that Brookfield Bicycle Company's coordinators share.
+"""Four specialists that the coordinators (pipeline.py, orchestrator.py) share.
 
     run_analyst(email)                   agent with the supply MCP tools; returns its brief (dict)
     write_supplier_reply(email, brief)   one model call; customer names are removed first
@@ -7,14 +7,19 @@
 
 The review step runs a writer, then the reviewer, revising at most MAX_REVISIONS times. Then
 code checks that no customer name is in a supplier draft and no supplier name is in a
-customer draft, saves the draft in week-05/drafts/, and marks it for a person if it failed
-either check or its order has a late penalty:
+customer draft, saves the draft in week-05/drafts/<company folder>/, and marks it for a
+person if it failed either check or its order has a late penalty. Then it prints the final
+draft once, between a FINAL DRAFT TO SUPPLIER / FINAL DRAFT TO CUSTOMER <order id> line and
+a "Marked for a person: yes/no" line:
 
     supplier_reply_step(email, brief)    -> result dict (draft, path, needs_person, reasons)
     customer_notice_step(order_id, brief) -> result dict
 
-Every specialist reads its system prompt from week-05/brookfield-bikes/prompts/ on each run.
-Every handoff and each specialist's token use is printed; token_report() prints the totals.
+The company comes from set_org(folder): its CSV files (column names worked out from each
+header row, see org_data.py) and its prompts/ folder, which every specialist reads its
+system prompt from on each run. Without set_org, week-05/brookfield-bikes is used.
+The analyst's brief is printed in full. Every handoff and each specialist's token use is
+printed; token_report() prints the totals.
 
 The Anthropic API key is read from the API_KEY environment variable (a Codespaces secret).
 It is never printed or written to a file.
@@ -22,18 +27,19 @@ It is never printed or written to a file.
 Usage from a coordinator (run from the top of the repository with the .venv Python):
 
     import specialists as sp
-    email = Path("week-05/brookfield-bikes/supplier-emails/01-northgate-controller-delay.eml").read_text()
+    sp.set_org("copperline-coffee")          # optional; default brookfield-bikes
+    email = Path("week-05/copperline-coffee/supplier-emails/01-danforth-pump-delay.eml").read_text()
     brief = sp.run_analyst(email)
     sp.supplier_reply_step(email, brief)
     for o in brief["orders_at_risk"]:
         sp.customer_notice_step(o["order_id"], brief)
     sp.token_report()
 
-Or try it on one email:  .venv/bin/python week-05/specialists.py <email.eml>
+Or try it on one email:  .venv/bin/python week-05/specialists.py [--org FOLDER] <email.eml>
 """
 
+import argparse
 import asyncio
-import csv
 import json
 import os
 import re
@@ -45,15 +51,16 @@ import anthropic
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
+import org_data
+from org_data import OrgData, OrgError
+
 MODEL = "claude-sonnet-5"
 MAX_TOOL_CALLS = 10
 MAX_REVISIONS = 2
 MAX_TOKENS = 16000
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE / "brookfield-bikes"
-PROMPTS = DATA / "prompts"
-DRAFTS = HERE / "drafts"
+DATA = PROMPTS = DRAFTS = None  # set by set_org()
 SERVER = HERE / "supply_mcp_server.py"
 SERVER_LOG = HERE / "logs" / "mcp-server.log"
 
@@ -118,25 +125,52 @@ def client():
     return _client
 
 
+def set_org(folder=None):
+    """Use one company folder (a path, or a folder name in week-05; None = brookfield-bikes)
+    for the data, the prompts, and where drafts are saved. Exits with a message if the
+    folder is incomplete or its columns can't be worked out."""
+    global DATA, PROMPTS, DRAFTS
+    try:
+        DATA = org_data.resolve_org(folder)
+        data = OrgData(DATA)
+    except OrgError as e:
+        sys.exit(str(e))
+    PROMPTS = DATA / "prompts"
+    DRAFTS = HERE / "drafts" / DATA.name
+    print(f"Company folder: {show(DATA)}")
+    for line in data.describe_columns():
+        print(f"  columns in {line}")
+    return DATA
+
+
+def show(path):
+    """A path relative to the top of the repository when it is inside it."""
+    path = Path(path)
+    return path.relative_to(HERE.parent) if path.is_relative_to(HERE.parent) else path
+
+
+def _org():
+    if DATA is None:
+        set_org()
+    return DATA
+
+
+def data():
+    """The company's CSV files, read fresh."""
+    return OrgData(_org())
+
+
 def prompt(name):
     """Read a specialist's system prompt fresh on every run."""
-    return (PROMPTS / f"{name}.txt").read_text(encoding="utf-8").strip()
-
-
-def read_csv(name):
-    with (DATA / name).open(newline="", encoding="utf-8-sig") as f:
-        return [{k.strip(): (v or "").strip() for k, v in row.items()} for row in csv.DictReader(f)]
+    return (_org() / "prompts" / f"{name}.txt").read_text(encoding="utf-8").strip()
 
 
 def customer_names():
-    return sorted({r["customer"] for r in read_csv("orders.csv") if r["customer"]}, key=len, reverse=True)
+    return data().customer_names()
 
 
 def supplier_names():
-    names = set()
-    for r in read_csv("suppliers.csv"):
-        names.update(n for n in (r["supplier"], r["contact_name"]) if n)
-    return sorted(names, key=len, reverse=True)
+    return data().supplier_names()
 
 
 def name_variants(name):
@@ -232,7 +266,7 @@ async def run_analyst_async(email):
     fmt = {"format": {"type": "json_schema", "schema": BRIEF_SCHEMA}}
     calls = 0
 
-    server = StdioServerParameters(command=sys.executable, args=[str(SERVER), "--data", str(DATA)])
+    server = StdioServerParameters(command=sys.executable, args=[str(SERVER), "--org", str(_org())])
     SERVER_LOG.parent.mkdir(parents=True, exist_ok=True)
     with SERVER_LOG.open("a", encoding="utf-8") as errlog:
         async with stdio_client(server, errlog=errlog) as (read, write):
@@ -271,7 +305,8 @@ async def run_analyst_async(email):
     brief = json.loads(text_of(response))
     handoff("analyst", "coordinator", f"brief for {brief['part_id']}, "
             f"{len(brief['orders_at_risk'])} order(s) at risk, {calls} tool call(s)")
-    print(json.dumps(brief, indent=2))
+    print("\nANALYST'S BRIEF")
+    print(json.dumps(brief, indent=2, ensure_ascii=False), flush=True)
     return brief
 
 
@@ -327,16 +362,17 @@ def write_supplier_reply(email, brief, previous=None, feedback=None):
 
 def order_facts(order_id, brief):
     """The facts of one order: orders.csv joined with the analyst's numbers for it."""
-    row = next((r for r in read_csv("orders.csv") if r["order_id"] == order_id), None)
-    risk = next((o for o in brief["orders_at_risk"] if o["order_id"] == order_id), None)
+    row = data().order(order_id)
+    risk = next((o for o in brief["orders_at_risk"]
+                 if o["order_id"].strip().upper() == order_id.upper()), None)
     if row is None or risk is None:
         raise ValueError(f"Order {order_id} is not in orders.csv or not at risk in the brief.")
     ready = risk["ready_day"]
     return {
-        "order_id": order_id,
+        "order_id": row["order_id"],
         "customer": row["customer"],
-        "model": row["model"],
-        "bikes": int(row["qty"]),
+        "product": row["product"],
+        "quantity": row["quantity"],
         "planned_ship_day": risk["ship_day"],
         "expected_ship_day": ready,
         "days_late": None if ready is None else ready - risk["ship_day"],
@@ -411,7 +447,15 @@ def _review_loop(recipient, facts, write):
         draft = write(draft, verdict["reasons"])
 
 
+def print_final(kind, key, draft, needs_person):
+    """Print the final draft once, after its review step."""
+    head = "FINAL DRAFT TO SUPPLIER" if kind == "supplier" else f"FINAL DRAFT TO CUSTOMER {key}"
+    print(f"\n{head}\n{draft.strip()}\nMarked for a person: {'yes' if needs_person else 'no'}",
+          flush=True)
+
+
 def _save(kind, key, recipient, draft, verdict, revisions, needs_person, reasons):
+    _org()
     DRAFTS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     path = DRAFTS / f"{stamp}-{kind}-{key}.md"
@@ -427,7 +471,7 @@ def _save(kind, key, recipient, draft, verdict, revisions, needs_person, reasons
         lines += ["Reviewer's last notes:", "", verdict["reasons"], ""]
     lines += ["---", "", draft, ""]
     path.write_text("\n".join(lines), encoding="utf-8")
-    print(f"    saved {path.relative_to(HERE.parent)}"
+    print(f"    saved {show(path)}"
           f"{'  [MARKED FOR A PERSON]' if needs_person else ''}")
     return path
 
@@ -443,6 +487,7 @@ def _finish(kind, key, recipient, draft, verdict, revisions, forbidden, forbidde
     if penalty:
         reasons.append(penalty)
     path = _save(kind, key, recipient, draft, verdict, revisions, bool(reasons), reasons)
+    print_final(kind, key, draft, bool(reasons))
     return {"kind": kind, "key": key, "draft": draft, "verdict": verdict["verdict"],
             "revisions": revisions, "needs_person": bool(reasons), "reasons": reasons,
             "path": str(path)}
@@ -455,6 +500,7 @@ def supplier_reply_step(email, brief):
         "supplier", facts, lambda prev, fb: write_supplier_reply(email, brief, prev, fb))
     if draft.strip() == "NO REPLY NEEDED":
         print("    supplier writer: no reply needed; nothing saved.")
+        print_final("supplier", brief["part_id"], draft, False)
         return {"kind": "supplier", "key": brief["part_id"], "draft": draft, "verdict": "APPROVE",
                 "revisions": 0, "needs_person": False, "reasons": [], "path": None}
     penalties = [o["order_id"] for o in brief["orders_at_risk"] if o["late_penalty"]]
@@ -469,6 +515,7 @@ def customer_notice_step(order_id, brief):
     draft, verdict, revisions = _review_loop(
         "customer", _customer_visible(order), lambda prev, fb: write_customer_notice(order, prev, fb))
     penalty = f"order {order_id} has a late penalty" if order["late_penalty"] else None
+    order_id = order["order_id"]
     return _finish("customer", order_id, f"customer {order['customer']}", draft, verdict, revisions,
                    supplier_names(), "supplier", penalty)
 
@@ -478,9 +525,14 @@ def customer_notice_step(order_id, brief):
 # ---------------------------------------------------------------------------
 
 def main():
-    if len(sys.argv) != 2:
-        sys.exit("Usage: .venv/bin/python week-05/specialists.py <supplier-email.eml>")
-    email = Path(sys.argv[1]).read_text(encoding="utf-8")
+    parser = argparse.ArgumentParser(description="Run every specialist on one supplier email.")
+    parser.add_argument("email", type=Path, help="path of one supplier email")
+    org_data.add_org_argument(parser)
+    args = parser.parse_args()
+    if not args.email.is_file():
+        sys.exit(f"No such email file: {args.email}")
+    set_org(args.org)
+    email = args.email.read_text(encoding="utf-8")
     brief = run_analyst(email)
     results = [supplier_reply_step(email, brief)]
     results += [customer_notice_step(o["order_id"], brief) for o in brief["orders_at_risk"]]
